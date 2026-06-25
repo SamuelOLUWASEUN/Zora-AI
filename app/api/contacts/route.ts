@@ -209,7 +209,3 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   return NextResponse.json({ success: true, contact: data }, { status: 201 });
 }
 
-// ── Reject all other methods ──────────────────
-export async function GET_FALLBACK(): Promise<NextResponse> {
-  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
-}
