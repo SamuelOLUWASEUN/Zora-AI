@@ -71,13 +71,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // .eq("user_id", userId) is the mandatory isolation filter.
   // Without it, service_role would return rows from ALL users.
   const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
+  const { data: rawData, error } = await supabase
     .from("contacts")
     .select("id, user_id, name, phone, email, created_at")
     .eq("user_id", userId)           // ← ISOLATION_ENFORCED: scopes to this user only
     .ilike("name", `%${name}%`)
     .limit(1)
-    .maybeSingle();                   // maybeSingle: returns null instead of error when no row found
+    .maybeSingle();
+
+  // Cast explicitly — maybeSingle() can return unknown shape in strict TS
+  const data = rawData as {
+    id: string;
+    user_id: string;
+    name: string;
+    phone: string;
+    email: string | null;
+    created_at: string;
+  } | null;
 
   if (error) {
     console.error("[ShieldVault/contacts GET] DB error:", error.message);
