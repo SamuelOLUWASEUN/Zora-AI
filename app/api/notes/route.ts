@@ -32,11 +32,14 @@ export const dynamic = "force-dynamic";
 // Runs at the top of every method handler.
 // Returns { userId } or a NextResponse error to return early.
 
+type AuthResult =
+  | { ok: true; userId: string }
+  | { ok: false; response: NextResponse };
+
 async function authenticate(
   request: NextRequest,
   rateLimitKey: string
-): Promise<{ userId: string } | NextResponse> {
-  // Rate limit check
+): Promise<AuthResult> {
   const ip = extractIP(request);
   let rl;
   try {
@@ -45,33 +48,39 @@ async function authenticate(
     rl = { success: true, limit: 20, remaining: 19, reset: 0 };
   }
   if (!rl.success) {
-    return NextResponse.json(
-      { error: "rate_limited", message: "Too many requests." },
-      { status: 429 }
-    );
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: "rate_limited", message: "Too many requests." },
+        { status: 429 }
+      ),
+    };
   }
 
-  // Session verification
-  let userId: string;
   try {
-    userId = await resolveUserId(request);
+    const userId = await resolveUserId(request);
+    return { ok: true, userId };
   } catch (err) {
     if (err instanceof AuthorizationError) {
-      return NextResponse.json(
-        { error: "unauthorized", message: err.message },
-        { status: 401 }
-      );
+      return {
+        ok: false,
+        response: NextResponse.json(
+          { error: "unauthorized", message: err.message },
+          { status: 401 }
+        ),
+      };
     }
-    return NextResponse.json({ error: "internal_error" }, { status: 500 });
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "internal_error" }, { status: 500 }),
+    };
   }
-
-  return { userId };
 }
 
 // ── GET — list notes ─────────────────────────
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const auth = await authenticate(request, "get");
-  if (auth instanceof NextResponse) return auth;
+  if (!auth.ok) return auth.response;
   const { userId } = auth;
 
   const { searchParams } = new URL(request.url);
@@ -79,7 +88,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const tag = searchParams.get("tag")?.trim();
   const pinned = searchParams.get("pinned");
 
-  const supabase = getSupabaseServerClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = getSupabaseServerClient() as any;
 
   let query = supabase
     .from("notes")
@@ -113,7 +123,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 // ── POST — create note ───────────────────────
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const auth = await authenticate(request, "post");
-  if (auth instanceof NextResponse) return auth;
+  if (!auth.ok) return auth.response;
   const { userId } = auth;
 
   let body: {
@@ -174,7 +184,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       ? body.source
       : "manual";
 
-  const supabase = getSupabaseServerClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = getSupabaseServerClient() as any;
   const { data, error } = await supabase
     .from("notes")
     .insert({
@@ -207,7 +218,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 // ── PATCH — update note ──────────────────────
 export async function PATCH(request: NextRequest): Promise<NextResponse> {
   const auth = await authenticate(request, "patch");
-  if (auth instanceof NextResponse) return auth;
+  if (!auth.ok) return auth.response;
   const { userId } = auth;
 
   const { searchParams } = new URL(request.url);
@@ -267,7 +278,8 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "No updatable fields provided" }, { status: 400 });
   }
 
-  const supabase = getSupabaseServerClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = getSupabaseServerClient() as any;
   const { data, error } = await supabase
     .from("notes")
     .update(update)
@@ -293,7 +305,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
 // ── DELETE — remove note ─────────────────────
 export async function DELETE(request: NextRequest): Promise<NextResponse> {
   const auth = await authenticate(request, "delete");
-  if (auth instanceof NextResponse) return auth;
+  if (!auth.ok) return auth.response;
   const { userId } = auth;
 
   const { searchParams } = new URL(request.url);
@@ -308,7 +320,8 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "id must be a valid UUID" }, { status: 400 });
   }
 
-  const supabase = getSupabaseServerClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = getSupabaseServerClient() as any;
   const { error, count } = await supabase
     .from("notes")
     .delete({ count: "exact" })
