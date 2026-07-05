@@ -155,7 +155,7 @@ export function getSupabaseRouteClient(
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: Array<{ name: string; value: string; options: import("@supabase/ssr").CookieOptions }>) {
           cookiesToSet.forEach(({ name, value, options }) => {
             request.cookies.set(name, value);
             response.cookies.set(name, value, options);
@@ -229,7 +229,7 @@ export async function resolveUserId(request: NextRequest): Promise<string> {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: Array<{ name: string; value: string; options: import("@supabase/ssr").CookieOptions }>) {
           // Route handlers: write cookies to the actual response instead.
           // This temp client is read-only — set cookies are intentionally dropped.
           cookiesToSet.forEach(({ name, value }) => {
@@ -256,3 +256,69 @@ export async function resolveUserId(request: NextRequest): Promise<string> {
   return user.id;
 }
 
+// ─────────────────────────────────────────────
+// SQL SCHEMA — run once in Supabase SQL Editor
+// ─────────────────────────────────────────────
+/*
+-- ══════════════════════════════════════════
+-- ShieldVault Production Schema
+-- Run this entire block in Supabase SQL Editor
+-- ══════════════════════════════════════════
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- ── contacts ─────────────────────────────
+CREATE TABLE IF NOT EXISTS public.contacts (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  phone       TEXT NOT NULL,
+  email       TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS contacts_user_id_idx ON public.contacts (user_id);
+CREATE INDEX IF NOT EXISTS contacts_name_idx    ON public.contacts (user_id, name);
+
+ALTER TABLE public.contacts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "contacts_own_rows"
+  ON public.contacts FOR ALL
+  USING      (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- ── notes ────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.notes (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  content     TEXT NOT NULL,
+  tags        TEXT[] NOT NULL DEFAULT '{}',
+  pinned      BOOLEAN NOT NULL DEFAULT false,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS notes_user_id_idx  ON public.notes (user_id);
+CREATE INDEX IF NOT EXISTS notes_created_idx  ON public.notes (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS notes_pinned_idx   ON public.notes (user_id, pinned);
+
+ALTER TABLE public.notes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "notes_own_rows"
+  ON public.notes FOR ALL
+  USING      (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- Auto-update updated_at on notes
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER notes_updated_at
+  BEFORE UPDATE ON public.notes
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+*/

@@ -21,7 +21,7 @@
 // ─────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 // Paths that require an authenticated session
 const PROTECTED_PAGE_PREFIXES = ["/dashboard"];
@@ -66,7 +66,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: Array<{ name: string; value: string; options: CookieOptions }>) {
           // Write refreshed tokens back to both request and response
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)

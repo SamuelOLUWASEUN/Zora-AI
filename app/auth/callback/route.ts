@@ -1,18 +1,11 @@
 // ─────────────────────────────────────────────
-// ShieldVault — Auth Callback Route
+// Zora — Auth Callback Route
 // GET /auth/callback
-//
-// Supabase redirects here after the user clicks
-// the magic link in their email. This route:
-//   1. Exchanges the one-time code for a session
-//   2. Sets the encrypted httpOnly session cookie
-//   3. Redirects to the original destination or /
-//
-// Without this route, magic link auth is broken.
+// Exchanges magic link code for session cookie.
 // ─────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -21,15 +14,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const code = searchParams.get("code");
   const redirectTo = searchParams.get("redirectTo") ?? "/";
 
-  // Validate redirectTo — prevent open redirect attacks
+  // Prevent open redirect attacks
   const safeRedirect = redirectTo.startsWith("/") ? redirectTo : "/";
 
   if (!code) {
-    // No code in URL — likely direct navigation to this route
     return NextResponse.redirect(new URL("/login?error=missing_code", origin));
   }
 
-  // Build a mutable response to carry the session cookie
   const response = NextResponse.redirect(new URL(safeRedirect, origin));
 
   const supabase = createServerClient(
@@ -40,8 +31,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
-          // Write session cookies to the redirect response
+        setAll(
+          cookiesToSet: Array<{
+            name: string;
+            value: string;
+            options: CookieOptions;
+          }>
+        ) {
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options);
           });
@@ -50,16 +46,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
   );
 
-  // Exchange the one-time code for a persistent session
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
-    console.error("[ShieldVault/auth/callback] Code exchange failed:", error.message);
+    console.error("[Zora/auth/callback] Code exchange failed:", error.message);
     return NextResponse.redirect(
-      new URL(`/login?error=auth_failed&message=${encodeURIComponent(error.message)}`, origin)
+      new URL(
+        `/login?error=auth_failed&message=${encodeURIComponent(error.message)}`,
+        origin
+      )
     );
   }
 
-  // Session cookie is now set on the response — redirect to destination
   return response;
 }
