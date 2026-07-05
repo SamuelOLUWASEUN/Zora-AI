@@ -378,9 +378,10 @@ export default function VoiceActivationController({
     wakeLockRef.current = sentinel;
 
     // ── Step 2: Init SpeechRecognition ──────
-    const SpeechRecognitionAPI =
-      (window as Window & { SpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition ||
-      (window as Window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SpeechRecognitionAPI: any =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognitionAPI) {
       setPermissionError("Speech recognition API disappeared. Refresh and try again.");
