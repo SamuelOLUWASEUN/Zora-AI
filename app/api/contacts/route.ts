@@ -2,9 +2,6 @@
 // Zora — /api/contacts Route Handler
 // GET  /api/contacts?name=<name>  → lookup by name
 // POST /api/contacts              → create contact
-//
-// SECURITY: Every query scoped to userId via
-// ISOLATION_ENFORCED anchor comments.
 // ─────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from "next/server";
@@ -19,8 +16,15 @@ import type { ContactRecord, ContactLookupResponse } from "@/types";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// ── Shared auth + rate limit guard ───────────
-async function authenticate(request: NextRequest, key: string) {
+// ── Discriminated union return type ──────────
+type AuthResult =
+  | { ok: true; userId: string }
+  | { ok: false; response: NextResponse };
+
+async function authenticate(
+  request: NextRequest,
+  key: string
+): Promise<AuthResult> {
   const ip = extractIP(request);
   let rl;
   try {
@@ -28,26 +32,30 @@ async function authenticate(request: NextRequest, key: string) {
   } catch {
     rl = { success: true, limit: 20, remaining: 19, reset: 0 };
   }
+
   if (!rl.success) {
     return {
-      error: NextResponse.json({ error: "rate_limited" }, { status: 429 }),
+      ok: false,
+      response: NextResponse.json({ error: "rate_limited" }, { status: 429 }),
     };
   }
 
   try {
     const userId = await resolveUserId(request);
-    return { userId };
+    return { ok: true, userId };
   } catch (err) {
     if (err instanceof AuthorizationError) {
       return {
-        error: NextResponse.json(
+        ok: false,
+        response: NextResponse.json(
           { error: "unauthorized", message: err.message },
           { status: 401 }
         ),
       };
     }
     return {
-      error: NextResponse.json({ error: "internal_error" }, { status: 500 }),
+      ok: false,
+      response: NextResponse.json({ error: "internal_error" }, { status: 500 }),
     };
   }
 }
@@ -55,7 +63,7 @@ async function authenticate(request: NextRequest, key: string) {
 // ── GET — lookup contact by name ─────────────
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const auth = await authenticate(request, "get");
-  if ("error" in auth) return auth.error;
+  if (!auth.ok) return auth.response;
   const { userId } = auth;
 
   const { searchParams } = new URL(request.url);
@@ -81,7 +89,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const { data, error } = await supabase
     .from("contacts")
     .select("id, user_id, name, phone, email, created_at")
-    .eq("user_id", userId) // ← ISOLATION_ENFORCED
+    .eq("user_id", userId)            // ← ISOLATION_ENFORCED
     .ilike("name", `%${name}%`)
     .limit(1)
     .maybeSingle();
@@ -120,7 +128,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 // ── POST — create contact ─────────────────────
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const auth = await authenticate(request, "post");
-  if ("error" in auth) return auth.error;
+  if (!auth.ok) return auth.response;
   const { userId } = auth;
 
   let body: Partial<ContactRecord>;
@@ -168,7 +176,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const { data, error } = await supabase
     .from("contacts")
     .insert({
-      user_id: userId, // ← ISOLATION_ENFORCED
+      user_id: userId,                // ← ISOLATION_ENFORCED
       name: name.trim(),
       phone: sanitisedPhone,
       email: sanitisedEmail,
