@@ -775,8 +775,6 @@ function s(T: TokenMap): Record<string, React.CSSProperties> {
       height: "4px",
       borderRadius: "2px",
       display: "block",
-      className: "zora-wave-bar",
-      // animationName set via className above
       animationName: "zoraBeat",
       animationTimingFunction: "ease-in-out",
       animationIterationCount: "infinite",
