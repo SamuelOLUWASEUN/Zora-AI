@@ -133,7 +133,7 @@ export default function VoiceActivationController({
   });
 
   // ── Refs — never trigger re-renders ─────────
-  const recognitionRef = useRef<InstanceType<typeof window.SpeechRecognition> | null>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const commandTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phaseRef = useRef<WakeWordPhase>("idle");
@@ -378,10 +378,8 @@ export default function VoiceActivationController({
     wakeLockRef.current = sentinel;
 
     // ── Step 2: Init SpeechRecognition ──────
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SpeechRecognitionAPI: any =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
+    const SpeechRecognitionAPI =
+      window.SpeechRecognition ?? window.webkitSpeechRecognition;
 
     if (!SpeechRecognitionAPI) {
       setPermissionError("Speech recognition API disappeared. Refresh and try again.");

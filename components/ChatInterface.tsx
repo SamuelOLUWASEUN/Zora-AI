@@ -392,7 +392,7 @@ export default function ChatInterface() {
   const [state, dispatch] = useReducer(chatReducer, initialState);
   const [inputText, setInputText] = useState("");
   const [showVoiceTooltip, setShowVoiceTooltip] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null); // types from types/speech.d.ts
   const torchTrackRef = useRef<MediaStreamTrack | null>(null);
   const torchStreamRef = useRef<MediaStream | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -448,12 +448,10 @@ export default function ChatInterface() {
   const startVoice = useCallback(() => {
     if (state.lockdown === "active") return;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SpeechRecognition: any =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
+    const SpeechRecognitionCtor =
+      window.SpeechRecognition ?? window.webkitSpeechRecognition;
 
-    if (!SpeechRecognition) {
+    if (!SpeechRecognitionCtor) {
       dispatch({ type: "SET_VOICE_STATE", payload: "error" });
       dispatch({
         type: "ADD_MESSAGE",
@@ -466,7 +464,7 @@ export default function ChatInterface() {
       return;
     }
 
-    const recognition = new SpeechRecognition();
+    const recognition = new SpeechRecognitionCtor();
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = "en-US";
