@@ -1,21 +1,20 @@
 "use client";
 
 // ─────────────────────────────────────────────
-// Zora — Privacy View Filter
+// Zora — Privacy View Filter (v2)
 //
-// When activated, applies a full-viewport blur
-// over the message feed. A tight 120px spotlight
-// follows the user's pointer/touch, unblurring
-// only the region directly under their finger.
-// Side-peekers cannot skim the full screen.
+// Rebuilt using a pure HTML div + CSS mask-image
+// instead of SVG. SVG <rect> elements have very
+// inconsistent backdrop-filter support on Android
+// Chrome — this is why the original blur felt weak.
 //
-// Implementation:
-//   - Outer wrapper: blurred, darkened overlay
-//   - SVG radial mask punches a hole at cursor/touch
-//   - mask-image CSS property clips the blur to
-//     everything EXCEPT the spotlight circle
-//   - onMouseMove / onTouchMove update spotlight
-//     position via useRef (no re-renders)
+// A standard HTML div with backdrop-filter + a CSS
+// radial-gradient mask is far more reliably supported
+// and noticeably stronger.
+//
+// Spotlight position is updated via CSS custom
+// properties (--x, --y) mutated directly on the DOM
+// node — no React re-render, smooth on mobile.
 // ─────────────────────────────────────────────
 
 import React, {
@@ -24,80 +23,47 @@ import React, {
   useEffect,
   type ReactNode,
   type PointerEvent,
+  type TouchEvent,
 } from "react";
 
-// ─────────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────────
-
 interface PrivacyFilterProps {
-  /** Content to protect */
   children: ReactNode;
-  /** Whether the privacy mask is active */
   active: boolean;
-  /** Spotlight radius in px — default 120 */
+  /** Spotlight radius in px — default 110 */
   spotlightRadius?: number;
-  /** CSS class applied to wrapper div */
   className?: string;
 }
-
-// ─────────────────────────────────────────────
-// COMPONENT
-// ─────────────────────────────────────────────
 
 export default function PrivacyFilter({
   children,
   active,
-  spotlightRadius = 120,
+  spotlightRadius = 110,
   className,
 }: PrivacyFilterProps) {
-  // Use refs for position — avoids re-render on every pointer move
   const overlayRef = useRef<HTMLDivElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const radialRef = useRef<SVGRadialGradientElement>(null);
-  const maskRectRef = useRef<SVGRectElement>(null);
-
-  // Track last known position for when filter is toggled on
+  const maskLayerRef = useRef<HTMLDivElement>(null);
   const lastPosRef = useRef({ x: -999, y: -999 });
 
-  // ── Spotlight update — direct DOM manipulation ──
-  // No setState → no re-render → buttery smooth on mobile
+  // ── Update spotlight position — direct style mutation ──
   const updateSpotlight = useCallback(
     (clientX: number, clientY: number) => {
       const overlay = overlayRef.current;
-      const svg = svgRef.current;
-      if (!overlay || !svg) return;
+      const maskLayer = maskLayerRef.current;
+      if (!overlay || !maskLayer) return;
 
       const rect = overlay.getBoundingClientRect();
       const x = clientX - rect.left;
       const y = clientY - rect.top;
-      const w = rect.width;
-      const h = rect.height;
 
       lastPosRef.current = { x, y };
 
-      // Express spotlight as percentage for SVG userSpaceOnUse
-      const cx = ((x / w) * 100).toFixed(2);
-      const cy = ((y / h) * 100).toFixed(2);
-
-      // Radius as % of the shorter viewport dimension
-      const rPx = spotlightRadius;
-      const rPct = ((rPx / Math.min(w, h)) * 100).toFixed(2);
-
-      // Update gradient center — direct attribute mutation, zero GC pressure
-      const grad = radialRef.current;
-      if (grad) {
-        grad.setAttribute("cx", `${cx}%`);
-        grad.setAttribute("cy", `${cy}%`);
-        grad.setAttribute("r", `${rPct}%`);
-        grad.setAttribute("fx", `${cx}%`);
-        grad.setAttribute("fy", `${cy}%`);
-      }
+      // Direct CSS custom property mutation — no re-render
+      maskLayer.style.setProperty("--spot-x", `${x}px`);
+      maskLayer.style.setProperty("--spot-y", `${y}px`);
     },
-    [spotlightRadius]
+    []
   );
 
-  // ── Pointer events (mouse + touch unified) ──
   const handlePointerMove = useCallback(
     (e: PointerEvent<HTMLDivElement>) => {
       if (!active) return;
@@ -107,7 +73,7 @@ export default function PrivacyFilter({
   );
 
   const handleTouchMove = useCallback(
-    (e: React.TouchEvent<HTMLDivElement>) => {
+    (e: TouchEvent<HTMLDivElement>) => {
       if (!active) return;
       const touch = e.touches[0];
       if (touch) updateSpotlight(touch.clientX, touch.clientY);
@@ -115,8 +81,16 @@ export default function PrivacyFilter({
     [active, updateSpotlight]
   );
 
-  // When filter activates, place spotlight at last known position
-  // (avoids the initial "blank" state before first pointer move)
+  const handleTouchStart = useCallback(
+    (e: TouchEvent<HTMLDivElement>) => {
+      if (!active) return;
+      const touch = e.touches[0];
+      if (touch) updateSpotlight(touch.clientX, touch.clientY);
+    },
+    [active, updateSpotlight]
+  );
+
+  // Restore last known spotlight position when re-activated
   useEffect(() => {
     if (active) {
       const { x, y } = lastPosRef.current;
@@ -124,12 +98,15 @@ export default function PrivacyFilter({
       if (overlay && x !== -999) {
         const rect = overlay.getBoundingClientRect();
         updateSpotlight(x + rect.left, y + rect.top);
+      } else if (overlay) {
+        // Default to center on first activation
+        const rect = overlay.getBoundingClientRect();
+        updateSpotlight(rect.left + rect.width / 2, rect.top + rect.height / 2);
       }
     }
   }, [active, updateSpotlight]);
 
   if (!active) {
-    // Render children unwrapped — zero overhead when filter is off
     return <>{children}</>;
   }
 
@@ -139,72 +116,26 @@ export default function PrivacyFilter({
       className={className}
       onPointerMove={handlePointerMove}
       onTouchMove={handleTouchMove}
+      onTouchStart={handleTouchStart}
       style={wrapperStyle}
-      aria-label="Privacy filter active. Move pointer to read."
+      aria-label="Privacy filter active. Move finger to read."
     >
-      {/* ── Content layer (sits behind the mask) ── */}
+      {/* Content layer — rendered normally underneath */}
       <div style={contentStyle}>{children}</div>
 
-      {/* ── Blur + dark overlay with SVG spotlight cutout ── */}
-      <div style={blurLayerStyle} aria-hidden="true">
-        {/*
-          SVG mask strategy:
-          - A radial gradient goes from transparent (center) to black (edge)
-          - This gradient is used as a mask on the blur rectangle
-          - Result: blur is REMOVED in the spotlight, APPLIED everywhere else
-          - No canvas, no canvas2d, no WebGL — pure CSS/SVG
-        */}
-        <svg
-          ref={svgRef}
-          style={svgStyle}
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-        >
-          <defs>
-            <radialGradient
-              id="sv-privacy-gradient"
-              ref={radialRef}
-              cx="50%"
-              cy="50%"
-              r="15%"
-              fx="50%"
-              fy="50%"
-              gradientUnits="userSpaceOnUse"
-            >
-              {/* Center: fully transparent (spotlight is clear) */}
-              <stop offset="0%" stopColor="black" stopOpacity="0" />
-              {/* Inner feather — smooth edge */}
-              <stop offset="60%" stopColor="black" stopOpacity="0.05" />
-              {/* Outer feather — starts to obscure */}
-              <stop offset="85%" stopColor="black" stopOpacity="0.85" />
-              {/* Edge: fully opaque (everything outside is blurred/dark) */}
-              <stop offset="100%" stopColor="black" stopOpacity="1" />
-            </radialGradient>
+      {/* Blur + mask layer — real CSS backdrop-filter on an HTML div */}
+      <div
+        ref={maskLayerRef}
+        style={
+          {
+            ...maskLayerStyle,
+            "--spot-radius": `${spotlightRadius}px`,
+          } as React.CSSProperties & Record<string, string>
+        }
+        aria-hidden="true"
+      />
 
-            <mask id="sv-privacy-mask">
-              {/* White = show blur layer; black = punch through to content */}
-              <rect width="100%" height="100%" fill="white" />
-              <rect
-                ref={maskRectRef}
-                width="100%"
-                height="100%"
-                fill="url(#sv-privacy-gradient)"
-              />
-            </mask>
-          </defs>
-
-          {/* Blur + dark tint rectangle, clipped by the mask */}
-          <rect
-            width="100%"
-            height="100%"
-            fill="rgba(9,9,11,0.72)"
-            mask="url(#sv-privacy-mask)"
-            style={{ backdropFilter: "blur(12px)" }}
-          />
-        </svg>
-      </div>
-
-      {/* ── Static status strip at top ── */}
+      {/* Status strip */}
       <div style={statusStripStyle} aria-live="polite">
         <span style={statusDotStyle} />
         <span style={statusTextStyle}>PRIVACY FILTER ACTIVE — MOVE TO READ</span>
@@ -219,7 +150,6 @@ export default function PrivacyFilter({
 
 const T = {
   bg: "#09090b",
-  border: "#1e1e24",
   red: "#ef4444",
   textDim: "#52525b",
   fontMono: "'JetBrains Mono', 'Fira Mono', 'Courier New', monospace",
@@ -230,38 +160,43 @@ const wrapperStyle: React.CSSProperties = {
   width: "100%",
   flex: 1,
   overflow: "hidden",
-  // Prevent text selection while privacy mode is active
   userSelect: "none",
   WebkitUserSelect: "none",
   cursor: "crosshair",
+  touchAction: "none", // prevent scroll from hijacking touch tracking
 };
 
 const contentStyle: React.CSSProperties = {
   position: "relative",
   width: "100%",
   height: "100%",
-  // Intentional: content is rendered normally underneath.
-  // The blur overlay sits on top — we don't actually blur
-  // the content itself, which would blur the spotlight too.
 };
 
-const blurLayerStyle: React.CSSProperties = {
+// The mask layer: a real HTML div with backdrop-filter blur,
+// masked by a radial-gradient centered on the spotlight position.
+// CSS custom properties --spot-x / --spot-y / --spot-radius are
+// mutated directly via JS for smooth 60fps tracking.
+const maskLayerStyle: React.CSSProperties = {
   position: "absolute",
   inset: 0,
-  pointerEvents: "none",
   zIndex: 10,
-  // CSS backdrop-filter on the SVG rect handles the blur.
-  // We need this parent to be non-blocking so pointer events
-  // pass through to the wrapper's onPointerMove handler.
-};
+  pointerEvents: "none",
 
-const svgStyle: React.CSSProperties = {
-  position: "absolute",
-  inset: 0,
-  width: "100%",
-  height: "100%",
-  display: "block",
-};
+  // Strong, genuinely visible blur — increased from the original
+  // implementation per user feedback that it wasn't blurry enough
+  backdropFilter: "blur(22px) saturate(0.7)",
+  WebkitBackdropFilter: "blur(22px) saturate(0.7)",
+  backgroundColor: "rgba(9, 9, 11, 0.82)",
+
+  // CSS mask: transparent circle (clear spotlight) fading to opaque
+  // (fully blurred) — uses CSS custom properties for position
+  maskImage:
+    "radial-gradient(circle var(--spot-radius, 110px) at var(--spot-x, 50%) var(--spot-y, 50%), transparent 0%, transparent 55%, black 100%)",
+  WebkitMaskImage:
+    "radial-gradient(circle var(--spot-radius, 110px) at var(--spot-x, 50%) var(--spot-y, 50%), transparent 0%, transparent 55%, black 100%)",
+
+  transition: "backdrop-filter 0.15s ease",
+} as React.CSSProperties;
 
 const statusStripStyle: React.CSSProperties = {
   position: "absolute",

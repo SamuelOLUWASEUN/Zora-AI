@@ -35,6 +35,9 @@ const VoiceActivationController = dynamic(
   { ssr: false }
 );
 
+// Lazy-load InstallPrompt — reads browser-only APIs
+const InstallPrompt = dynamic(() => import("./InstallPrompt"), { ssr: false });
+
 // ─────────────────────────────────────────────
 // TYPE SYSTEM
 // ─────────────────────────────────────────────
@@ -529,14 +532,20 @@ export default function ChatInterface() {
 
   // ── Torch control ────────────────────────────
   const toggleTorch = useCallback(async () => {
+    // Screen-flash fallback stays ON until manually dismissed —
+    // either by tapping the flash, or tapping the torch button again.
+    // No auto-timeout: a flashlight that turns itself off after 3s
+    // isn't useful as a flashlight.
     const triggerFlash = () => {
       dispatch({ type: "SET_TORCH", payload: true });
-      flashTimeoutRef.current = setTimeout(() => {
-        dispatch({ type: "SET_TORCH", payload: false });
-      }, 3000);
     };
 
     if (state.torchActive) {
+      // Turn off — works for both real hardware torch and screen-flash fallback
+      if (flashTimeoutRef.current) {
+        clearTimeout(flashTimeoutRef.current);
+        flashTimeoutRef.current = null;
+      }
       try {
         await torchTrackRef.current?.applyConstraints({
           advanced: [{ torch: false } as MediaTrackConstraintSet],
@@ -564,11 +573,20 @@ export default function ChatInterface() {
     } catch {
       dispatch({
         type: "SET_TORCH_ERROR",
-        payload: "Hardware torch overridden by browser policy — screen flash active",
+        payload: "Hardware torch unavailable on this device — using screen flash instead. Tap the white screen to turn off.",
       });
       triggerFlash();
     }
   }, [state.torchActive]);
+
+  // Dismiss screen-flash by tapping anywhere on it
+  const dismissScreenFlash = useCallback(() => {
+    if (flashTimeoutRef.current) {
+      clearTimeout(flashTimeoutRef.current);
+      flashTimeoutRef.current = null;
+    }
+    dispatch({ type: "SET_TORCH", payload: false });
+  }, []);
 
   // ── Send message ─────────────────────────────
   const handleSend = useCallback(
@@ -881,7 +899,15 @@ export default function ChatInterface() {
     <>
       {/* Screen flash overlay (torch fallback) */}
       {state.torchActive && !torchTrackRef.current && (
-        <div style={styles.screenFlash} aria-hidden="true" />
+        <div
+          style={styles.screenFlash}
+          onClick={dismissScreenFlash}
+          onTouchStart={dismissScreenFlash}
+          role="button"
+          aria-label="Tap to turn off flashlight"
+        >
+          <span style={styles.screenFlashHint}>TAP ANYWHERE TO TURN OFF</span>
+        </div>
       )}
 
       {/* Overlays */}
@@ -1101,6 +1127,9 @@ export default function ChatInterface() {
           onToggleLockdown={() => dispatch({ type: "TOGGLE_LOCKDOWN" })}
           isLocked={isLocked}
         />
+
+        {/* ── PWA INSTALL HINT ── */}
+        <InstallPrompt />
       </div>
     </>
   );
@@ -1180,7 +1209,8 @@ const styles: Record<string, React.CSSProperties> = {
   voiceBtnActive: { borderColor: TOKEN.green, color: TOKEN.green, backgroundColor: "rgba(16,185,129,0.08)" },
   sendBtn: { display: "flex", alignItems: "center", justifyContent: "center", width: "34px", height: "34px", borderRadius: TOKEN.radius, border: "none", backgroundColor: TOKEN.textPrimary, color: TOKEN.bg, cursor: "pointer", transition: "opacity 0.15s", flexShrink: 0 },
   voiceHint: { margin: "6px 0 0", fontFamily: TOKEN.fontMono, fontSize: "10px", letterSpacing: "0.08em", color: TOKEN.textDim, textAlign: "center" as const },
-  screenFlash: { position: "fixed", inset: 0, backgroundColor: "#ffffff", zIndex: 9999, pointerEvents: "none" },
+  screenFlash: { position: "fixed", inset: 0, backgroundColor: "#ffffff", zIndex: 9999, pointerEvents: "auto", cursor: "pointer", display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: "48px" },
+  screenFlashHint: { fontFamily: TOKEN.fontMono, fontSize: "11px", letterSpacing: "0.15em", color: "#09090b", opacity: 0.4, fontWeight: 700 },
   tooltipBanner: { flexShrink: 0, borderTop: `1px solid ${TOKEN.border}`, backgroundColor: "rgba(16,185,129,0.04)" },
   tooltipInner: { display: "flex", alignItems: "flex-start", gap: "12px", padding: "12px 16px" },
   tooltipText: { flex: 1, display: "flex", flexDirection: "column" as const, gap: "4px" },

@@ -91,6 +91,7 @@ export default function LandingPage() {
             <span style={s.navWordmark}>ZORA</span>
           </div>
           <div style={s.navActions}>
+            <Link href="/pricing" style={s.navLink}>Pricing</Link>
             <Link href="/login" style={s.navLink}>Sign in</Link>
             <Link href="/login" style={s.navCta}>Get access →</Link>
           </div>

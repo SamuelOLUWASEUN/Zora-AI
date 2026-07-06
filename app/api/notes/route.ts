@@ -202,7 +202,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json(
       {
         error: "Failed to create note",
-        ...(process.env.NODE_ENV === "development" && { detail: error.message }),
+        detail: error.message,
       },
       { status: 500 }
     );

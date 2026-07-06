@@ -134,12 +134,12 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 
   // ── RULE 0: Protect root path exactly ──────────
   // "/" is the main app — requires auth.
+  // Unauthenticated visitors go to /landing first (the marketing
+  // page) rather than straight to /login — this is the front door.
   // Must check before prefix rules to avoid catching everything.
   if (pathname === "/") {
     if (!isAuthenticated) {
-      const redirectUrl = new URL("/login", request.url);
-      redirectUrl.searchParams.set("redirectTo", "/");
-      return NextResponse.redirect(redirectUrl);
+      return NextResponse.redirect(new URL("/landing", request.url));
     }
     return response;
   }

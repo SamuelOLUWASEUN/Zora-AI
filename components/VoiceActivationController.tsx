@@ -138,6 +138,14 @@ export default function VoiceActivationController({
   const commandTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phaseRef = useRef<WakeWordPhase>("idle");
   const isActiveRef = useRef(false);
+  // Tracks whether recognition has done its true first start —
+  // distinguishes initial startup from automatic mid-session restarts
+  const hasStartedOnceRef = useRef(false);
+  // Tracks whether the USER wants hands-free mode on — independent of
+  // isActive. When Android suspends the mic on backgrounding, isActive
+  // goes false but the user never asked for that. This ref lets the
+  // visibility-change recovery know it should silently restart.
+  const userIntentRef = useRef(false);
 
   // Keep refs in sync with state (for use inside event callbacks)
   useEffect(() => { phaseRef.current = phase; }, [phase]);
@@ -370,6 +378,7 @@ export default function VoiceActivationController({
   const startHandsFree = useCallback(async () => {
     if (!compat.supported || isLocked) return;
 
+    userIntentRef.current = true; // user explicitly wants this on
     setPermissionError(null);
     setStatusMessage("Requesting microphone access…");
 
@@ -397,9 +406,18 @@ export default function VoiceActivationController({
     recognition.onstart = () => {
       setIsActive(true);
       isActiveRef.current = true;
-      setPhase("idle");
-      phaseRef.current = "idle";
-      setStatusMessage("Listening for wake word…");
+      // CRITICAL FIX: only reset phase to idle on the very first start.
+      // Android continuous recognition auto-restarts frequently (every
+      // few seconds). If we reset phase here unconditionally, a restart
+      // happening mid-command-capture wipes out "wake_detected" or
+      // "capturing" state instantly — this was why the wake word chime
+      // played but the command was never actually captured.
+      if (!hasStartedOnceRef.current) {
+        hasStartedOnceRef.current = true;
+        setPhase("idle");
+        phaseRef.current = "idle";
+        setStatusMessage("Listening for wake word…");
+      }
     };
 
     recognition.onresult = handleResult;
@@ -409,9 +427,12 @@ export default function VoiceActivationController({
       if (event.error === "aborted") return;
 
       if (event.error === "not-allowed" || event.error === "permission-denied") {
-        setPermissionError(
-          "Microphone access denied. Enable microphone permissions in your browser settings."
-        );
+        // Android often suspends mic access when a tab is backgrounded —
+        // this fires "not-allowed" even though the user never revoked
+        // permission. Don't hard-stop immediately; the visibilitychange
+        // handler below will attempt to silently recover when the tab
+        // regains focus. Only show the scary message if recovery fails.
+        setStatusMessage("Microphone paused — will resume automatically.");
         stopHandsFree();
         return;
       }
@@ -493,6 +514,7 @@ export default function VoiceActivationController({
     // ── Reset state ──────────────────────────
     setIsActive(false);
     isActiveRef.current = false;
+    hasStartedOnceRef.current = false;
     setPhase("idle");
     phaseRef.current = "idle";
     setStatusMessage("");
@@ -502,15 +524,39 @@ export default function VoiceActivationController({
   const handleToggle = useCallback(() => {
     if (isLocked) return;
     if (isActive) {
+      userIntentRef.current = false; // deliberate user action — don't auto-recover
       stopHandsFree();
     } else {
       startHandsFree();
     }
   }, [isActive, isLocked, startHandsFree, stopHandsFree]);
 
+  // ── Auto-recovery on tab visibility change ──
+  // Android frequently suspends mic access when a tab is backgrounded,
+  // firing a "not-allowed" error that isn't a real permission revocation.
+  // If the user still wants hands-free mode on (userIntentRef), silently
+  // restart recognition the moment the tab regains focus — no need for
+  // the user to manually re-toggle every time they switch apps.
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (
+        document.visibilityState === "visible" &&
+        userIntentRef.current &&
+        !isActiveRef.current
+      ) {
+        startHandsFree();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [startHandsFree]);
+
   // ── Cleanup on unmount ───────────────────────
   useEffect(() => {
     return () => {
+      userIntentRef.current = false;
       stopHandsFree();
     };
   }, [stopHandsFree]);
