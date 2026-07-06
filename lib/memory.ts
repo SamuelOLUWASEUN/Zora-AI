@@ -275,8 +275,8 @@ export async function extractAndSaveFacts(
 function similarity(a: string, b: string): number {
   const wordsA = new Set(a.toLowerCase().split(/\s+/));
   const wordsB = new Set(b.toLowerCase().split(/\s+/));
-  const intersection = [...wordsA].filter((w) => wordsB.has(w)).length;
-  const union = new Set([...wordsA, ...wordsB]).size;
+  const intersection = Array.from(wordsA).filter((w) => wordsB.has(w)).length;
+  const union = new Set(Array.from(wordsA).concat(Array.from(wordsB))).size;
   return union === 0 ? 0 : intersection / union;
 }
 

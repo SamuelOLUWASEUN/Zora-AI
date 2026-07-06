@@ -80,7 +80,7 @@ function extractNoteTags(body: string): string[] {
     .map(({ tag }) => tag);
 
   // Deduplicate and cap at 5 auto-tags
-  return [...new Set(matched)].slice(0, 5);
+  return Array.from(new Set(matched)).slice(0, 5);
 }
 
 export function detectIntent(query: string): DetectedIntent {
