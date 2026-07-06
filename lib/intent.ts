@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────
-// ShieldVault — Client-Side Intent Detection
+// Zora — Client-Side Intent Detection
 // Runs in the browser — NO API keys, pure regex
 // Fast pre-classification before server round-trip
 // ─────────────────────────────────────────────

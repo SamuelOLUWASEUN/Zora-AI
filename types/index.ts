@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────
-// ShieldVault — Shared Type System
+// Zora — Shared Type System
 // ─────────────────────────────────────────────
 
 export type MessageRole = "user" | "assistant" | "system";

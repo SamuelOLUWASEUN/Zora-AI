@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────
-// ShieldVault — AI Provider Abstraction
+// Zora — AI Provider Abstraction
 // Supports: Groq (default) | Gemini
 // Switch via: AI_PROVIDER=groq|gemini in .env.local
 // NO keys ever exposed to client — server-only
@@ -18,8 +18,8 @@ export interface ProviderResponse {
   latencyMs: number;
 }
 
-// ── System prompt — defines ShieldVault's concierge persona ──
-const SYSTEM_PROMPT = `You are ShieldVault, a privacy-first personal AI concierge. 
+// ── System prompt — defines Zora's concierge persona ──
+const SYSTEM_PROMPT = `You are Zora, a privacy-first personal AI concierge. 
 You run on-device context: the user's contacts, calendar events, and notes stay local and private.
 You are terse, precise, and executive in tone — like a senior EA who wastes no words.
 You can help with: scheduling, notes, calling contacts, setting reminders, quick answers, and device actions.

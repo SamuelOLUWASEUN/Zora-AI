@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────
-// ShieldVault — Next.js Middleware
+// Zora — Next.js Middleware
 //
 // Intercepts ALL requests. Enforces two rules:
 //
@@ -166,7 +166,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
         {
           status: 401,
           headers: {
-            "WWW-Authenticate": 'Bearer realm="ShieldVault API"',
+            "WWW-Authenticate": 'Bearer realm="Zora API"',
           },
         }
       );

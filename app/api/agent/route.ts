@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────
-// ShieldVault — /api/agent Route Handler
+// Zora — /api/agent Route Handler
 // POST /api/agent
 // Protected by: Upstash sliding-window rate limit (IP)
 // AI: Provider-agnostic (Groq default, Gemini fallback)
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch (err) {
     // If Upstash is misconfigured, fail open in dev, fail closed in prod
     if (process.env.NODE_ENV === "production") {
-      console.error("[ShieldVault] Rate limiter unavailable:", err);
+      console.error("[Zora] Rate limiter unavailable:", err);
       return NextResponse.json(
         { error: "Service temporarily unavailable" },
         { status: 503 }
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     aiResult = await callAI(messages);
   } catch (err) {
-    console.error("[ShieldVault] AI provider error:", err);
+    console.error("[Zora] AI provider error:", err);
 
     const errorMessage =
       err instanceof Error ? err.message : "Unknown AI error";

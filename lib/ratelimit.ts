@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────
-// ShieldVault — Upstash Rate Limiter
+// Zora — Upstash Rate Limiter
 // Strategy: Sliding window, per IP
 // Limit: 20 requests per 60 seconds
 // ─────────────────────────────────────────────
@@ -29,7 +29,7 @@ function getRatelimit(): Ratelimit {
     redis,
     limiter: Ratelimit.slidingWindow(20, "60 s"),
     analytics: true,
-    prefix: "shieldvault:ratelimit",
+    prefix: "zora:ratelimit",
   });
 
   return _ratelimit;

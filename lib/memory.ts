@@ -1,7 +1,7 @@
 "use client";
 
 // ─────────────────────────────────────────────
-// ShieldVault — Vault Memory
+// Zora — Vault Memory
 // Private, session-aware AI memory layer.
 // Stores structured facts extracted from conversation.
 // 100% client-side — IndexedDB only. Zero server calls.
@@ -18,7 +18,7 @@ export interface MemoryFact {
   useCount: number;
 }
 
-const DB_NAME = "shieldvault-memory";
+const DB_NAME = "zora-memory";
 const DB_VERSION = 1;
 const STORE_NAME = "facts";
 const MAX_FACTS = 50;       // Hard cap — keeps IndexedDB lean

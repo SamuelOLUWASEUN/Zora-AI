@@ -296,7 +296,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   return (
     <div style={{ ...styles.messageRow, justifyContent: isUser ? "flex-end" : "flex-start" }}>
       {!isUser && (
-        <div style={styles.agentBadge} aria-label="ShieldVault agent">SV</div>
+        <div style={styles.agentBadge} aria-label="Zora agent">SV</div>
       )}
       <div style={{
         ...styles.bubble,
@@ -347,7 +347,7 @@ function MemoryPanel({
         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
           {facts.length === 0 ? (
             <div style={{ padding: "20px 0", textAlign: "center", fontFamily: TOKEN.fontMono, fontSize: "11px", color: TOKEN.textDim }}>
-              No memory yet. Start chatting and ShieldVault will learn your context.
+              No memory yet. Start chatting and Zora will learn your context.
             </div>
           ) : (
             facts.map((fact) => (

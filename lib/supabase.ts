@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────
-// ShieldVault — Supabase Client Layer
+// Zora — Supabase Client Layer
 //
 // THREE DISTINCT CLIENTS — each has a precise role:
 //
@@ -105,7 +105,7 @@ function requireEnv(key: string): string {
   const val = process.env[key];
   if (!val) {
     throw new Error(
-      `[ShieldVault] Missing required environment variable: ${key}\n` +
+      `[Zora] Missing required environment variable: ${key}\n` +
       `Copy .env.example → .env.local and fill in all values.`
     );
   }
@@ -180,7 +180,7 @@ export function getSupabaseBrowserClient() {
 
   if (!url || !anonKey) {
     throw new Error(
-      "[ShieldVault] NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY " +
+      "[Zora] NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY " +
       "must be set for the browser client (login page)."
     );
   }
@@ -261,7 +261,7 @@ export async function resolveUserId(request: NextRequest): Promise<string> {
 // ─────────────────────────────────────────────
 /*
 -- ══════════════════════════════════════════
--- ShieldVault Production Schema
+-- Zora Production Schema
 -- Run this entire block in Supabase SQL Editor
 -- ══════════════════════════════════════════
 

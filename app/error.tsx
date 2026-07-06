@@ -9,7 +9,7 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[ShieldVault] Unhandled error:", error);
+    console.error("[Zora] Unhandled error:", error);
   }, [error]);
 
   const T = { bg: "#09090b", border: "#1e1e24", textPrimary: "#ffffff", textMuted: "#a1a1aa", textDim: "#52525b", red: "#ef4444", fontMono: "'JetBrains Mono', monospace", fontSans: "'Inter', sans-serif" };

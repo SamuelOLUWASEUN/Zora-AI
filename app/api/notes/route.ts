@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────
-// ShieldVault — /api/notes Route Handler
+// Zora — /api/notes Route Handler
 //
 // GET    /api/notes              → list user notes (newest first, pinned top)
 // POST   /api/notes              → create note from AI agent or manual input
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const { data, error } = await query;
 
   if (error) {
-    console.error("[ShieldVault/notes GET] DB error:", error.message);
+    console.error("[Zora/notes GET] DB error:", error.message);
     return NextResponse.json(
       { error: "Failed to retrieve notes" },
       { status: 500 }
@@ -198,7 +198,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     .single();
 
   if (error) {
-    console.error("[ShieldVault/notes POST] DB insert error:", error.message);
+    console.error("[Zora/notes POST] DB insert error:", error.message);
     return NextResponse.json(
       {
         error: "Failed to create note",
@@ -209,7 +209,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   console.info(
-    `[ShieldVault/notes] Created note ${data.id} via ${source} for user ${userId.slice(0, 8)}…`
+    `[Zora/notes] Created note ${data.id} via ${source} for user ${userId.slice(0, 8)}…`
   );
 
   return NextResponse.json({ success: true, note: data }, { status: 201 });
@@ -289,7 +289,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
     .maybeSingle();
 
   if (error) {
-    console.error("[ShieldVault/notes PATCH] DB update error:", error.message);
+    console.error("[Zora/notes PATCH] DB update error:", error.message);
     return NextResponse.json({ error: "Failed to update note" }, { status: 500 });
   }
 
@@ -329,7 +329,7 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     .eq("user_id", userId);          // ← ISOLATION_ENFORCED: user cannot delete other users' notes
 
   if (error) {
-    console.error("[ShieldVault/notes DELETE] DB error:", error.message);
+    console.error("[Zora/notes DELETE] DB error:", error.message);
     return NextResponse.json({ error: "Failed to delete note" }, { status: 500 });
   }
 

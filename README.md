@@ -62,7 +62,7 @@ Open [http://localhost:3000](http://localhost:3000)
 ## Architecture
 
 ```
-shieldvault/
+zora/
 ├── app/
 │   ├── api/
 │   │   ├── agent/route.ts      ← AI handler (rate limited, provider-agnostic)
@@ -152,6 +152,6 @@ vercel --prod
 git init
 git add .
 git commit -m "feat: Zora Phase 1"
-git remote add origin https://github.com/SamuelOLUWASEUN/shieldvault.git
+git remote add origin https://github.com/SamuelOLUWASEUN/zora.git
 git push -f origin main
 ```

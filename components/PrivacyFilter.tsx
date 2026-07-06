@@ -1,7 +1,7 @@
 "use client";
 
 // ─────────────────────────────────────────────
-// ShieldVault — Privacy View Filter
+// Zora — Privacy View Filter
 //
 // When activated, applies a full-viewport blur
 // over the message feed. A tight 120px spotlight
