@@ -1,0 +1,12 @@
+# ─────────────────────────────────────────────
+# Zora — Netlify Build Configuration
+#
+# SECRETS_SCAN_OMIT_KEYS: NEXT_PUBLIC_APP_URL is not a
+# secret — it's the public site URL used by middleware
+# for canonical domain redirection. Netlify's secrets
+# scanner flags it because NEXT_PUBLIC_ vars appear in
+# compiled output by design (they're meant to be public).
+# ─────────────────────────────────────────────
+
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,NEXT_PUBLIC_APP_NAME"
