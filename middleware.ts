@@ -36,8 +36,48 @@ const PUBLIC_PATHS = ["/landing", "/pricing"];
 // Paths the middleware completely ignores (static assets, etc.)
 const IGNORED_PREFIXES = ["/_next", "/favicon", "/icons", "/manifest"];
 
+// ─────────────────────────────────────────────
+// CANONICAL DOMAIN ENFORCEMENT
+//
+// Netlify assigns every single deploy a unique throwaway
+// subdomain like "6a4b1a13743c...--zoraai-ai.netlify.app"
+// in addition to the real production domain.
+//
+// Browsers scope cookies per-subdomain. If a session gets
+// created while sitting on a deploy-preview subdomain, that
+// cookie is invisible on the real production domain — causing
+// an infinite-looking "keeps sending me back to login" bug.
+//
+// This check redirects any request landing on a deploy-preview
+// subdomain straight to the canonical production domain,
+// before any auth logic runs. Set NEXT_PUBLIC_APP_URL in your
+// environment variables to your real production domain.
+// ─────────────────────────────────────────────
+
+const CANONICAL_HOST = process.env.NEXT_PUBLIC_APP_URL
+  ? new URL(process.env.NEXT_PUBLIC_APP_URL).host
+  : null;
+
+function isDeployPreviewHost(host: string): boolean {
+  // Netlify deploy-preview pattern: <hash>--<sitename>.netlify.app
+  return /^[a-f0-9]{8,}--.+\.netlify\.app$/i.test(host);
+}
+
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
+  const currentHost = request.headers.get("host") ?? "";
+
+  // ── RULE -1: Redirect deploy-preview subdomains to canonical domain ──
+  if (
+    CANONICAL_HOST &&
+    currentHost !== CANONICAL_HOST &&
+    isDeployPreviewHost(currentHost)
+  ) {
+    const canonicalUrl = new URL(request.url);
+    canonicalUrl.host = CANONICAL_HOST;
+    canonicalUrl.protocol = "https:";
+    return NextResponse.redirect(canonicalUrl, 308);
+  }
 
   // ── Skip middleware for static assets ────────
   if (IGNORED_PREFIXES.some((p) => pathname.startsWith(p))) {
