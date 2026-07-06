@@ -1,18 +1,29 @@
 // ─────────────────────────────────────────────
-// ShieldVault — Browser Supabase Client
+// Zora — Browser Supabase Client
+//
+// Uses createBrowserClient from @supabase/ssr — NOT
+// the plain createClient from @supabase/supabase-js.
+//
+// WHY THIS MATTERS:
+// createBrowserClient automatically uses the PKCE auth
+// flow and writes the session into cookies (not just
+// localStorage). This is what makes /auth/callback able
+// to exchange a `?code=` param for a session server-side.
+//
+// The plain createClient defaults to implicit flow,
+// which returns tokens as a URL fragment (#access_token=...)
+// that only JavaScript can read — never reaches the server,
+// and our /auth/callback route (which expects ?code=) fails
+// with "missing_code".
 //
 // This file is SAFE to import from client components.
-// It uses NEXT_PUBLIC_ env vars (anon key only).
-// The anon key has zero privileges — RLS blocks all
-// data access unless a valid user session exists.
-//
-// DO NOT import lib/supabase.ts from client components.
-// That file contains "server-only" and will throw.
+// It uses NEXT_PUBLIC_ env vars (anon key only) — zero
+// privileges without a valid session, RLS blocks everything.
 // ─────────────────────────────────────────────
 
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
-let _browserClient: ReturnType<typeof createClient> | null = null;
+let _browserClient: ReturnType<typeof createBrowserClient> | null = null;
 
 export function getSupabaseBrowserClient() {
   if (_browserClient) return _browserClient;
@@ -22,18 +33,12 @@ export function getSupabaseBrowserClient() {
 
   if (!url || !anonKey) {
     throw new Error(
-      "[ShieldVault] NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY " +
+      "[Zora] NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY " +
       "must be set in .env.local for the browser client."
     );
   }
 
-  _browserClient = createClient(url, anonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    },
-  });
+  _browserClient = createBrowserClient(url, anonKey);
 
   return _browserClient;
 }
